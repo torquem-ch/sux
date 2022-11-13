@@ -135,3 +135,33 @@ TEST(recsplit_test, small_text_dump_and_load) {
 	recsplit_unit_test(rs_load, keys);
 	remove(filename);
 }
+
+TEST(recsplit_test, small_text_dump_and_load_one_by_one) {
+	vector<string> keys;
+	keys.push_back("a");
+	keys.push_back("b");
+	keys.push_back("c");
+	keys.push_back("d");
+
+	const char *filename = "test/test_dump";
+
+	RecSplit<8> rs_dump(keys.size(), 2);
+	for (size_t i = 0; i < keys.size(); i++) rs_dump.add_key(keys[i]);
+	rs_dump.build();
+
+	fstream fs;
+	fs.exceptions(fstream::failbit | fstream::badbit);
+	fs.open(filename, fstream::out | fstream::binary | fstream::trunc);
+	fs << rs_dump;
+	fs.close();
+
+	RecSplit<8> rs_load;
+	fs.open(filename, std::fstream::in | std::fstream::binary);
+	fs >> rs_load;
+	fs.close();
+
+	for (size_t i = 0; i < rs_dump.size(); i++) ASSERT_EQ(rs_dump(keys[i]), rs_load(keys[i]));
+
+	recsplit_unit_test(rs_load, keys);
+	remove(filename);
+}

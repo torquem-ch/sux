@@ -307,16 +307,31 @@ template <size_t LEAF_SIZE, util::AllocType AT = util::AllocType::MALLOC> class 
 	// For each bucket size, the Golomb-Rice parameter (upper 8 bits) and the number of bits to
 	// skip in the fixed part of the tree (lower 24 bits).
 	static constexpr array<uint32_t, MAX_BUCKET_SIZE> memo = fill_golomb_rice<LEAF_SIZE>();
-	static constexpr array<uint8_t, MAX_LEAF_SIZE> bij_midstop = fill_bij_midstop();
 
 	size_t bucket_size;
 	size_t nbuckets;
 	size_t keys_count;
 	RiceBitVector<AT> descriptors;
 	DoubleEF<AT> ef;
+    std::vector<hash128_t> key_hashes;
 
   public:
 	RecSplit() {}
+
+    RecSplit(const size_t _keys_count, const size_t _bucket_size) {
+        this->bucket_size = _bucket_size;
+        this->keys_count = _keys_count;
+        key_hashes.reserve(this->keys_count);
+    }
+
+    void add_key(const string& key) {
+        key_hashes.push_back(first_hash(key.c_str(), key.size()));
+    }
+
+    void build() {
+        hash_gen(key_hashes.data());
+        key_hashes.clear();
+    }
 
 	/** Builds a RecSplit instance using a given list of keys and bucket size.
 	 *
@@ -448,7 +463,8 @@ template <size_t LEAF_SIZE, util::AllocType AT = util::AllocType::MALLOC> class 
 	}
 
 	void recSplit(vector<uint64_t> &bucket, vector<uint64_t> &temp, size_t start, size_t end, typename RiceBitVector<AT>::Builder &builder, vector<uint32_t> &unary, const int level) {
-		const auto m = end - start;
+        static const array<uint8_t, MAX_LEAF_SIZE> bij_midstop = fill_bij_midstop();
+        const auto m = end - start;
 		assert(m > 1);
 		uint64_t x = start_seed[level];
 
